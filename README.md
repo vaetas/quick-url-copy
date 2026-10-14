@@ -54,6 +54,60 @@ To update after a rebuild, click the refresh icon on the extension card (or rest
 
 Temporary add-ons are removed when Firefox quits. Load the folder again after restart, or keep `bun run dev:firefox` running during development.
 
+## Sign for Firefox (unlisted / self-distribution)
+
+Release Firefox builds require a Mozilla-signed `.xpi`. This project is set up for **unlisted** signing: the add-on is not public on AMO, but you get a signed file you can install or host yourself.
+
+Stable add-on ID (required for updates): `quick-url-copy@local` in `wxt.config.ts` → `browser_specific_settings.gecko.id`. **Do not change this ID** after your first successful AMO submission.
+
+### One-time setup
+
+1. Confirm your [Firefox Add-ons Developer account](https://addons.mozilla.org/en-US/developers/) is active and your email is verified.
+2. Open [API credentials](https://addons.mozilla.org/en-US/developers/addon/api/key/) and create a **new key pair** (JWT issuer + secret). Store the secret somewhere safe; AMO shows it only once.
+3. Copy `.env.example` to `.env` in the project root and set:
+   - `WEB_EXT_API_KEY` — JWT issuer (looks like `user:12345678:99`)
+   - `WEB_EXT_API_SECRET` — JWT secret
+4. Ensure Node.js **20+** is available (`web-ext` 10.x requirement). Bun runs the scripts; `web-ext` is a Node binary.
+
+`bun run sign:firefox` loads credentials from `.env` automatically. You can also `export WEB_EXT_API_KEY` / `WEB_EXT_API_SECRET` in your shell instead.
+
+Signing config lives in `web-ext-config.cjs` (`channel: unlisted`, source `.output/firefox-mv3`, artifacts `web-ext-artifacts/`).
+
+### Sign from the CLI
+
+```bash
+bun run lint:firefox   # optional: build + AMO linter
+bun run sign:firefox   # build + submit to AMO + download signed .xpi
+```
+
+Signed packages are written under `web-ext-artifacts/` (gitignored).
+
+Equivalent manual flow:
+
+```bash
+bun run build:firefox
+export WEB_EXT_API_KEY='user:…'
+export WEB_EXT_API_SECRET='…'
+web-ext sign --channel=unlisted --source-dir=.output/firefox-mv3
+```
+
+### Sign via AMO Developer Hub (no CLI)
+
+1. Run `bun run zip:firefox` and use the zip under `.output/` (or zip the `firefox-mv3` folder yourself).
+2. Go to [Submit a New Add-on](https://addons.mozilla.org/en-US/developers/addon/submit/upload-unlisted).
+3. Accept the developer agreement, upload the package, choose **On your own** / self-distribution (unlisted).
+4. Fix any validator errors, then download the signed `.xpi` from the add-on’s **Manage Status & Versions** page.
+
+Unlisted add-ons are usually signed automatically after validation (no public listing review). Mozilla may still review later under [Add-on Policies](https://extensionworkshop.com/documentation/publish/add-on-policies/).
+
+### Install the signed XPI
+
+1. Open `about:addons`.
+2. Gear menu → **Install Add-on From File…**
+3. Select the signed `.xpi` from `web-ext-artifacts/`.
+
+For each new release, bump `version` in `package.json` (WXT copies it to the manifest), then run `bun run sign:firefox` again with the **same** `gecko.id`.
+
 ## Keyboard shortcuts
 
 Chrome and Firefox already use `⌘⇧C` / `Ctrl+Shift+C` for **Inspect Element**. They will not hand that combo to the extension from the manifest suggestion alone. You must free the built-in binding where the browser requires it, then assign the shortcut once yourself.

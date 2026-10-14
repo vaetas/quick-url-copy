@@ -2,5 +2,8 @@ node_modules
 .wxt
 .output
 *.zip
+.env
+web-ext-artifacts
+.amo-upload-uuid
 package-lock.json
 npm-shrinkwrap.json

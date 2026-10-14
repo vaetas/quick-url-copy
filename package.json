@@ -11,10 +11,14 @@
     "build:firefox": "wxt build -b firefox",
     "zip": "wxt zip",
     "zip:firefox": "wxt zip -b firefox",
+    "lint:firefox": "bun run build:firefox && web-ext lint",
+    "sign:firefox": "bun run build:firefox && bun --env-file=.env run sign:firefox:amo",
+    "sign:firefox:amo": "web-ext sign",
     "postinstall": "wxt prepare"
   },
   "devDependencies": {
     "typescript": "^5.9.2",
+    "web-ext": "^10.7.0",
     "wxt": "^0.20.6"
   }
 }
