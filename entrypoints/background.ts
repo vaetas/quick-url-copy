@@ -1,11 +1,13 @@
+import { injectCopiedToast } from '../utils/copied-toast';
+
 const COPY_MESSAGE_TYPE = 'copy-url';
 const OFFSCREEN_PATH = '/offscreen.html';
 const OFFSCREEN_REASON = 'CLIPBOARD' as const;
 const OFFSCREEN_JUSTIFICATION = 'Write the current tab URL to the clipboard';
 
-async function getActiveTabUrl(tab?: Browser.tabs.Tab): Promise<string | undefined> {
-  if (tab?.url) {
-    return tab.url;
+async function getActiveTab(tab?: Browser.tabs.Tab): Promise<Browser.tabs.Tab | undefined> {
+  if (tab?.id !== undefined) {
+    return tab;
   }
 
   const [activeTab] = await browser.tabs.query({
@@ -13,7 +15,23 @@ async function getActiveTabUrl(tab?: Browser.tabs.Tab): Promise<string | undefin
     currentWindow: true,
   });
 
-  return activeTab?.url;
+  return activeTab;
+}
+
+async function showCopiedToast(tab?: Browser.tabs.Tab): Promise<void> {
+  const tabId = tab?.id;
+  if (tabId === undefined) {
+    return;
+  }
+
+  try {
+    await browser.scripting.executeScript({
+      target: { tabId },
+      func: injectCopiedToast,
+    });
+  } catch {
+    // Restricted pages (chrome://, about:, the store, etc.) cannot run scripts.
+  }
 }
 
 async function copyWithClipboardApi(text: string): Promise<void> {
@@ -66,12 +84,14 @@ export default defineBackground(() => {
     }
 
     void (async () => {
-      const url = await getActiveTabUrl(tab);
+      const activeTab = await getActiveTab(tab);
+      const url = activeTab?.url;
       if (!url) {
         return;
       }
 
       await copyUrlToClipboard(url);
+      await showCopiedToast(activeTab);
     })();
   });
 });

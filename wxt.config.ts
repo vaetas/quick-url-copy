@@ -8,6 +8,8 @@ export default defineConfig({
     permissions: [
       'tabs',
       'clipboardWrite',
+      'scripting',
+      'activeTab',
       ...(browser === 'firefox' ? [] : ['offscreen']),
     ],
     commands: {

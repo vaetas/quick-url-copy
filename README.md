@@ -121,25 +121,53 @@ Chrome and Firefox already use `⌘⇧C` / `Ctrl+Shift+C` for **Inspect Element*
 
 ### Firefox
 
-Firefox’s default for **Inspect Element** is `⌘⇧C` on macOS and `Ctrl+Shift+C` on Windows and Linux ([DevTools keyboard shortcuts](https://firefox-source-docs.mozilla.org/devtools-user/keyboard_shortcuts/index.html)). On `about:keyboard` that action is listed as **DOM and Style Inspector**.
+A shortcut the browser already uses cannot be overridden by an extension: the command may be defined, but the handler is not called ([`commands` on MDN](https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/manifest.json/commands)). You must free the built-in key first, then assign it to the extension yourself ([Bug 1325692](https://bugzilla.mozilla.org/show_bug.cgi?id=1325692)). This needs Firefox 147 or newer, which adds [Customize keyboard shortcuts](https://support.mozilla.org/kb/customize-keyboard-shortcuts-firefox).
 
-A shortcut the browser already uses cannot be overridden by an extension: the command may be defined, but the handler is not called ([`commands` on MDN](https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/manifest.json/commands)). Clear the built-in key first, then give it to the extension ([Bug 1325692](https://bugzilla.mozilla.org/show_bug.cgi?id=1325692)). This needs Firefox 147 or newer, which adds [Customize keyboard shortcuts](https://support.mozilla.org/kb/customize-keyboard-shortcuts-firefox).
+On Windows and Linux, **Inspect Element** is `Ctrl+Shift+C`. That binding is **DOM and Style Inspector** on `about:keyboard`.
 
-1. Open `about:keyboard`.
-2. Search for **DOM and Style Inspector**.
-3. Click **Clear** to unset the default `⌘⇧C` (macOS) or `Ctrl+Shift+C` (Windows/Linux). **Reset** on that row puts the Firefox default back.
-4. Open `about:addons`.
-5. Click the gear icon → **Manage Extension Shortcuts**.
-6. Find **Quick URL Copy** → **Copy the current tab URL**.
-7. Set `⌘⇧C` (macOS) or `Ctrl+Shift+C` (Windows/Linux).
+On macOS, Firefox has **two** inspector shortcuts ([DevTools keyboard shortcuts](https://firefox-source-docs.mozilla.org/devtools-user/keyboard_shortcuts/index.html)):
 
-If that combo still fights with another extension, pick any free combination in **Manage Extension Shortcuts** (for example `⌘⇧U` / `Ctrl+Shift+U`). The extension listens for the command, not a hard-coded key.
+| Combo     | What it is |
+| --------- | ---------- |
+| `⌘⌥C`     | **DOM and Style Inspector** on `about:keyboard` (`key_inspector`) |
+| `⌘⇧C`     | Extra Chrome-compatible Inspect Element shortcut (`key_inspectorMac`). **Not listed** on `about:keyboard`. |
+
+Clearing **DOM and Style Inspector** only frees `⌘⌥C`. `⌘⇧C` still opens the inspector, so the extension never runs.
+
+**Fastest fix (any OS):** give the extension a free combo instead of fighting DevTools.
+
+1. Open `about:addons`.
+2. Click the gear icon → **Manage Extension Shortcuts**.
+3. Find **Quick URL Copy** → **Copy the current tab URL**.
+4. Set something unused, for example `⌘⇧U` / `Ctrl+Shift+U`.
+5. Reload the extension if you just loaded it from `about:debugging` — temporary add-ons can drop a blank shortcut after Reload.
+6. Focus a normal webpage (not the address bar) and try the new combo.
+
+**If you want `⌘⇧C` on macOS**, you have to clear the hidden `key_inspectorMac` binding, then assign it to the extension:
+
+1. Open the [Browser Console](https://firefox-source-docs.mozilla.org/devtools-user/browser_console/index.html) with `⌘⇧J`.
+2. Paste this and press Enter:
+
+   ```js
+   const { CustomKeys } = ChromeUtils.importESModule(
+     "moz-src:///browser/components/customkeys/CustomKeys.sys.mjs",
+   );
+   CustomKeys.clearKey("key_inspectorMac");
+   ```
+
+3. Open a **new Firefox window** (cleared keys can keep working in the window where you changed them).
+4. Confirm `⌘⇧C` no longer opens the inspector.
+5. Open `about:addons` → gear → **Manage Extension Shortcuts** and assign `⌘⇧C` to **Copy the current tab URL**.
+
+To undo that, run `CustomKeys.resetKey("key_inspectorMac")` in the Browser Console.
+
+On Windows and Linux, clear **DOM and Style Inspector** on `about:keyboard`, open a new window, then assign `Ctrl+Shift+C` in **Manage Extension Shortcuts**.
 
 ### Avoid fighting other shortcuts
 
 - Prefer assigning the shortcut in the browser’s extension shortcut page rather than relying on the manifest suggestion.
-- On Firefox, clear **DOM and Style Inspector** on `about:keyboard` before assigning `⌘⇧C` / `Ctrl+Shift+C` to this extension.
-- Check `chrome://extensions/shortcuts` or Firefox’s **Manage Extension Shortcuts** for blank or conflicting bindings after install.
+- On Firefox macOS, clearing **DOM and Style Inspector** does not free `⌘⇧C`; clear `key_inspectorMac` or pick another combo.
+- Check `chrome://extensions/shortcuts` or Firefox’s **Manage Extension Shortcuts** for blank or conflicting bindings after install or reload.
 - If another extension already claims the same key, either free it there or choose a different shortcut for Quick URL Copy.
 - Focus a normal page (not the address bar) when testing the shortcut.
 
@@ -148,6 +176,7 @@ If that combo still fights with another extension, pick any free combination in 
 1. Open any tab (a normal site or an internal page like `chrome://extensions` / `about:addons`).
 2. Press the assigned shortcut.
 3. Paste somewhere — you should get that tab’s full URL as plain text.
+4. A small **Copied** toast should appear in the upper right of the page for 2 seconds (not on `chrome://`, `about:`, or other restricted pages).
 
 ## Permissions
 
@@ -155,4 +184,6 @@ If that combo still fights with another extension, pick any free combination in 
 | ---------------- | ------------------------------------------------ |
 | `tabs`           | Read the active tab URL (including internal pages) |
 | `clipboardWrite` | Write the URL to the clipboard                   |
+| `scripting`      | Show a brief “Copied” toast on the current page  |
+| `activeTab`      | Allow that toast when the shortcut is used       |
 | `offscreen`      | Chrome only — clipboard write from the service worker |
